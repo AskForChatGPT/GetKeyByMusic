@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音樂播放器與標記功能</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #timeLine { width: 100%; height: 10px; background: lightgray; position: relative; margin-top: 20px; }
+        .marker { position: absolute; height: 10px; width: 2px; background: red; }
+        .selected { background: yellow; }
+
+        #audio {
+            width: 100%; /* 音頻控制條寬度為100% */
+            max-width: 100%; /* 確保不會超過螢幕寬度 */
+        }
+
+    </style>
+</head>
+<body>
+
+<h1>音樂播放器與標記功能</h1>
+<input type="file" id="mp3File" accept=".mp3">
+<button id="play">播放</button>
+<button id="saveTXT">另存為 TXT</button>
+
+<div id="timeLine"></div>
+<audio id="audio" controls></audio>
+
+<script>
+let audio = document.getElementById('audio');
+let mp3FileInput = document.getElementById('mp3File');
+let timeLine = document.getElementById('timeLine');
+let markers = [];
+let currentMarkerIndex = -1;
+let isCPressed = false;
+let isQPressed = false;
+let isVPressed = false;
+let isBPressed = false;
+
+mp3FileInput.addEventListener('change', function() {
+    const file = this.files[0];
+    const url = URL.createObjectURL(file);
+    audio.src = url;
+});
+
+document.getElementById('play').addEventListener('click', function() {
+    audio.play();
+});
+
+
+// Space鍵播放音樂
+document.addEventListener('keydown', function(event) {
+    const key = event.key.toUpperCase();
+
+    if (key === 'C') {
+        isCPressed = true; // 記錄 C 鍵狀態
+    } else if (key === 'Q') {
+        isQPressed = true; 
+    } else if (key === 'V') {
+        isVPressed = true; 
+    } else if (key === 'B') {
+        isBPressed = true; 
+    }
+
+    if (currentMarkerIndex >= 0 && currentMarkerIndex < markers.length) {
+        switch (key) {
+            case 'A':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'C2'; // 改為 C3
+                    playAudioForMarker(markers[currentMarkerIndex]); // 播放對應的音頻
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'C6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'C3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'C5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'C4'; // A 對應 C1
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'S':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'D2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'D6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'D3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'D5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'D4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'D':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'E2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'E6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'E3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'E5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'E4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'F':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'F2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'F6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'F3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'F5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'F4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'G':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'G2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'G6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'G3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'G5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'G4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'H':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'A2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'A6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'A3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'A5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'A4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'J':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'B2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'B6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'B3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'B5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'B4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'K':
+                if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'C7'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }  else {
+                    
+                }
+                break;
+            case 'W':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'CS2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'CS6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'CS3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'CS5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'CS4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'E':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'DS2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'DS6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'DS3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'DS5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'DS4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'T':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'FS2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'FS6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'FS3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'FS5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'FS4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'Y':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'GS2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'GS6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'GS3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'GS5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'GS4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+            case 'U':
+                if (isCPressed) {
+                    markers[currentMarkerIndex].mark = 'AS2';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isQPressed) {
+                    markers[currentMarkerIndex].mark = 'AS6'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isVPressed) {
+                    markers[currentMarkerIndex].mark = 'AS3'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else if (isBPressed) {
+                    markers[currentMarkerIndex].mark = 'AS5'; 
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                } else {
+                    markers[currentMarkerIndex].mark = 'AS4';
+                    playAudioForMarker(markers[currentMarkerIndex]); 
+                }
+                break;
+        }
+    }
+
+    if (event.code === 'Space') {
+        if (audio.paused) {
+            audio.play();
+        } else {
+            audio.pause();
+        }
+    } else if (event.code === 'KeyM') {
+        recordMarker();
+    } else if (event.code === 'KeyZ') {
+        selectPreviousMarker();
+    } else if (event.code === 'KeyX') {
+        selectNextMarker();
+    } else if (event.code === 'KeyN') {
+        deleteCurrentMarker();
+    }
+});
+
+
+// 監聽鍵盤釋放事件以重置 C 鍵狀態
+document.addEventListener('keyup', function(event) {
+    if (event.key.toUpperCase() === 'C') {
+        isCPressed = false; // 當 C 鍵被釋放，重置狀態
+    } else if (event.key.toUpperCase() === 'Q') {
+        isQPressed = false; 
+    } else if (event.key.toUpperCase() === 'V') {
+        isVPressed = false; 
+    } else if (event.key.toUpperCase() === 'B') {
+        isBPressed = false; 
+    }
+});
+
+function recordMarker() {
+    if (audio.duration > 0) {
+        const currentTime = audio.currentTime.toFixed(3); // 小數後三位
+        markers.push({ time: currentTime }); // 只記錄時間
+        
+        // 重新排序標記，根據時間升序排列
+        markers.sort((a, b) => a.time - b.time);
+        
+        updateCurrentMarkerIndex(currentTime); // 更新當前標記索引
+        drawMarker(currentTime); // 繪製新的標記
+        playSound(); // 播放對應音效
+    }
+}
+
+function updateCurrentMarkerIndex(currentTime) {
+    currentMarkerIndex = markers.findIndex(marker => marker.time >= currentTime);
+    if (currentMarkerIndex === -1) {
+        currentMarkerIndex = markers.length - 1; // 如果沒有找到，選擇最後一個標記
+    }
+}
+
+
+function drawMarker(time) {
+    const position = (time / audio.duration) * 100;
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    marker.style.left = `${position}%`;
+    timeLine.appendChild(marker);
+}
+
+function playAudioForMarker(marker) {
+    const audioFile = `${marker.mark}.MP3`; // 根據標記的字母生成文件名
+    const audio = new Audio(audioFile);
+    audio.play(); // 播放音頻
+}
+
+function selectPreviousMarker() {
+    if (currentMarkerIndex > 0) {
+        currentMarkerIndex--;
+        updateMarkerSelection();
+        playAudioForMarker(markers[currentMarkerIndex]); // 播放對應的音頻
+        jumpToMarkerTime(markers[currentMarkerIndex]); // 跳到對應的時間
+    }
+}
+
+
+function selectNextMarker() {
+    if (currentMarkerIndex < markers.length - 1) {
+        currentMarkerIndex++;
+        updateMarkerSelection();
+        playAudioForMarker(markers[currentMarkerIndex]); // 播放對應的音頻
+        jumpToMarkerTime(markers[currentMarkerIndex]); // 跳到對應的時間
+    }
+}
+
+function jumpToMarkerTime(marker) {
+    audio.currentTime = marker.time; // 設置音頻的當前播放時間
+    audio.pause(); // 暫停音頻
+}
+
+function updateMarkerSelection() {
+    const allMarkers = document.querySelectorAll('.marker');
+    allMarkers.forEach(marker => marker.classList.remove('selected'));
+    if (currentMarkerIndex >= 0 && currentMarkerIndex < allMarkers.length) {
+        allMarkers[currentMarkerIndex].classList.add('selected');
+    }
+}
+
+function deleteCurrentMarker() {
+    if (currentMarkerIndex >= 0 && currentMarkerIndex < markers.length) {
+        markers.splice(currentMarkerIndex, 1);
+        const allMarkers = document.querySelectorAll('.marker');
+        allMarkers[currentMarkerIndex].remove();
+        updateMarkerSelection();
+    }
+}
+
+function saveToFile() {
+    const blobContent = markers.map(marker => {
+        return `${marker.time}\t${marker.mark}`; // 根據標記顯示內容
+    }).join('\n'); // 每個標記一行
+
+    const blob = new Blob([blobContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'markers.txt'; // 新檔案的名稱
+    a.click();
+    URL.revokeObjectURL(url); // 釋放 URL 物件
+}
+
+document.getElementById('saveTXT').addEventListener('click', saveToFile);
+
+function playSound() {
+    const sound = new Audio('sound.mp3'); // 假設有一個固定的音效檔案
+    sound.play();
+}
+
+</script>
+
+</body>
+</html>
