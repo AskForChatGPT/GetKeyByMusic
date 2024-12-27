@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音樂播放器與音符顯示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #timeline {
+            position: relative;
+            width: 100%;
+            height: 50px;
+            border-top: 2px solid pink;
+            margin-top: 20px;
+        }
+        .note {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: red;
+            border-radius: 50%;
+        }
+        .marker {
+            position: absolute;
+            width: 1px;
+            height: 10px;
+            background: yellow;
+        }
+        #output {
+            margin-top: 20px;
+            font-family: Arial, sans-serif;
+            white-space: pre; /* 保留空格和換行格式 */
+        }
+    </style>
+</head>
+<body>
+    <h1>音樂播放器與音符顯示</h1>
+    <input type="file" id="file-input-mp3" accept="audio/mp3">
+    <input type="file" id="file-input-txt" accept=".txt">
+    <audio id="audio" controls></audio>
+    <div id="timeline"></div>
+    <div id="output"></div>
+
+ <script id="uku-map-data" type="application/json">
+    {
+        "C2": ["C4", "-", "-", "0", "-"],   
+        "D2": ["D4", "-", "-", "2", "-"],   
+        "E2": ["E4", "-", "0", "4", "-"],   
+        "F2": ["F4", "-", "1", "5", "-"],   
+        "G2": ["G4", "-", "3", "7", "0"],   
+        "A2": ["A4", "0", "5", "9", "2"],   
+        "B2": ["B4", "2", "7", "11", "4"],  
+        "C3": ["C4", "-", "-", "0", "-"],   
+        "D3": ["D4", "-", "-", "2", "-"],   
+        "E3": ["E4", "-", "0", "4", "-"],   
+        "F3": ["F4", "-", "1", "5", "-"],   
+        "G3": ["G4", "-", "3", "7", "0"],   
+        "A3": ["A4", "0", "5", "9", "2"],   
+        "B3": ["B4", "2", "7", "11", "4"],  
+        "CS2": ["CS4", "-", "-", "1", "-"],     
+        "DS2": ["DS4", "-", "-", "3", "-"],     
+        "FS2": ["FS4", "-", "2", "6", "-"],     
+        "GS2": ["GS4", "-", "4", "8", "1"],     
+        "AS2": ["AS4", "1", "6", "10", "3"],    
+        "C4": ["C4", "-", "-", "0", "-"],   
+        "D4": ["D4", "-", "-", "2", "-"],   
+        "E4": ["E4", "-", "0", "4", "-"],   
+        "F4": ["F4", "-", "1", "5", "-"],   
+        "G4": ["G4", "-", "3", "7", "0"],   
+        "A4": ["A4", "0", "5", "9", "2"],   
+        "B4": ["B4", "2", "7", "11", "4"],  
+        "C5": ["C5", "3", "8", "12", "5"],  
+        "D5": ["D5", "5", "10", "14", "7"],     
+        "E5": ["E5", "7", "12", "16", "9"],     
+        "F5": ["F5", "8", "13", "17", "10"],    
+        "G5": ["G5", "10", "15", "-", "12"],    
+        "A5": ["A5", "12", "17", "-", "14"],    
+        "B5": ["B5", "14", "-", "-", "16"],     
+        "C6": ["C6", "15", "-", "-", "17"],     
+        "D6": ["D6", "17", "-", "-", "-"],  
+        "CS4": ["CS4", "-", "-", "1", "-"],     
+        "DS4": ["DS4", "-", "-", "3", "-"],     
+        "FS4": ["FS4", "-", "2", "6", "-"],     
+        "GS4": ["GS4", "-", "4", "8", "1"],     
+        "AS4": ["AS4", "1", "6", "10", "3"],    
+        "CS5": ["CS5", "4", "9", "13", "6"],    
+        "DS5": ["DS5", "6", "11", "15", "8"],   
+        "FS5": ["FS5", "9", "14", "18", "11"],  
+        "GS5": ["GS5", "11", "16", "-", "13"],  
+        "AS5": ["AS5", "13", "18", "-", "15"],  
+        "CS6": ["CS6", "16", "-", "-", "18"],   
+        "DS6": ["DS6", "18", "-", "-", "-"],    
+        "C7": ["C6", "15", "-", "-", "17"] 
+
+
+
+
+    }
+
+    </script>
+
+
+    <script>
+        const audio = document.getElementById("audio");
+        const fileInputMp3 = document.getElementById("file-input-mp3");
+        const fileInputTxt = document.getElementById("file-input-txt");
+        const timeline = document.getElementById("timeline");
+
+        let notes = [];
+        let currentMarker = null;
+        let intervalId = null;
+        let currentNoteIndex = 0; // 當前音符索引
+
+        let startIndex = null; // I 的索引
+        let endIndex = null;   // O 的索引
+        
+
+    // 加載內嵌的 UkuMap 數據
+        const ukuMap = JSON.parse(document.getElementById("uku-map-data").textContent);
+        console.log("UkuMap loaded:", ukuMap);
+
+
+
+        // 載入 MP3 檔
+        fileInputMp3.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                audio.src = url;
+            }
+        });
+
+         // 上傳文件並解析音符
+        fileInputTxt.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const contents = e.target.result.split('\n');
+                notes = contents.map(line => {
+                    const [time, note] = line.split('\t');
+                    return { time: parseFloat(time), note: note.trim() };
+                });
+                drawNotes();
+            };
+            reader.readAsText(file);
+        });
+
+
+       // 繪製音符
+        function drawNotes() {
+            timeline.innerHTML = '';
+            notes.forEach(note => {
+                const noteElement = document.createElement('div');
+                noteElement.className = 'note';
+                const position = (note.time / audio.duration) * 100; // 計算位置
+                noteElement.style.left = `${position}%`;
+                timeline.appendChild(noteElement);
+            });
+        }
+
+        // 播放或暫停音樂
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                if (audio.paused) {
+                    audio.play();
+                    startNoteCheck();
+                } else {
+                    audio.pause();
+                    stopNoteCheck();
+                }
+            }
+        });
+
+        // 定期檢查音符
+                function startNoteCheck() {
+            stopNoteCheck();
+            intervalId = setInterval(() => {
+                const currentTime = audio.currentTime;
+
+                // 更新黃色標記的位置
+                if (currentMarker) {
+                    currentMarker.remove();
+                }
+                currentMarker = document.createElement('div');
+                currentMarker.className = 'marker';
+                currentMarker.style.left = `${(currentTime / audio.duration) * 100}%`;
+                timeline.appendChild(currentMarker);
+
+                
+            }, 20); // 每 20 毫秒檢查一次
+        }
+        // 停止音符檢查
+        function stopNoteCheck() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        }
+
+        // 獲取音效文件
+
+
+        // 另存新檔
+        
+
+        // 鼠標事件控制音樂時間
+        timeline.addEventListener('click', function(event) {
+            const rect = timeline.getBoundingClientRect();
+            const offsetX = event.clientX - rect.left;
+            const totalWidth = rect.width;
+            const newTime = (offsetX / totalWidth) * audio.duration;
+
+            
+            audio.pause();
+            stopNoteCheck();
+
+
+
+            // 更新 currentNoteIndex，找到最接近 newTime 的音符
+            let closestIndex = 0;
+            let closestDifference = Infinity;
+            notes.forEach((note, index) => {
+                const difference = Math.abs(note.time - newTime);
+                if (difference < closestDifference) {
+                    closestDifference = difference;
+                    closestIndex = index;
+                }
+            });
+            currentNoteIndex = closestIndex;
+
+            console.log(`Updated currentNoteIndex to: ${currentNoteIndex}`);
+        });
+
+
+        // 音符變更
+        // 處理鍵盤事件
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'KeyZ') { // 跳到上一個音符
+                if (currentNoteIndex > 0) {
+                    currentNoteIndex--;
+                    audio.currentTime = notes[currentNoteIndex].time;
+                    audio.pause();
+                }
+            } else if (event.code === 'KeyX') { // 跳到下一個音符
+                if (currentNoteIndex < notes.length - 1) {
+                    currentNoteIndex++;
+                    audio.currentTime = notes[currentNoteIndex].time;
+                    audio.pause();
+                }
+            } else  if (event.code === 'KeyI') { // 設定最前的音符索引
+                startIndex = currentNoteIndex;
+                console.log(`Start index set to: ${startIndex}`);
+            } else if (event.code === 'KeyO') { // 設定最後的音符索引
+                endIndex = currentNoteIndex;
+                console.log(`End index set to: ${endIndex}`);
+            } else if (event.code === 'KeyP') { // 輸出範圍內的音符名稱
+                if (startIndex !== null && endIndex !== null && startIndex <= endIndex) {
+                    const selectedNotes = notes.slice(startIndex, endIndex + 1);
+
+                    // 收集範圍內的音符名稱
+                    const selectedNoteNames = selectedNotes.map(note => note.note);
+
+                    // 確保至少有一個有效的音符名稱存在於 UkuMap 中
+                    const firstValidNote = selectedNoteNames.find(noteName => ukuMap[noteName]);
+                    if (!firstValidNote) {
+                        console.error("選擇的音符名稱都不存在於 UkuMap 中！");
+                        output.textContent = "選擇的音符名稱都不存在於 UkuMap 中！";
+                        return;
+                    }
+
+                    // 構建輸出數據
+                    const rows = [];
+                    const maxColumns = ukuMap[firstValidNote].length;
+
+                    // 遍歷每列數據，逐行構建輸出
+                    for (let i = 0; i < maxColumns; i++) {
+                        const row = selectedNoteNames.map(noteName => {
+                            const mapValues = ukuMap[noteName];
+                            return mapValues ? mapValues[i] : '-'; // 如果音符不存在，填充占位符 "-"
+                        });
+                        rows.push(row.join('\t')); // 使用 TAB 格分隔每列
+                    }
+
+                    // 將結果輸出到頁面
+                    output.textContent = rows.join('\n'); // 使用換行符分隔每行
+                    console.log(`Generated notes from index ${startIndex} to ${endIndex}`);
+                } else {
+                    console.log("請先設置有效的開始 (I) 和結束 (O) 索引。");
+                }
+            }
+        });
+    </script>
+</body>
+</html>
