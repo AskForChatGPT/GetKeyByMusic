@@ -1,0 +1,633 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOTE to MIDI</title>
+    <style>
+        body { background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #98ffcc; text-align: center; }
+        button { background-color: #800080; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover:not(:disabled) { background-color: #990099; }
+        button:disabled { background-color: #404040; cursor: not-allowed; }
+        input[type="file"] { margin: 10px 0; color: #ffffff; }
+        input[type="number"] { width: 60px; margin: 0 5px; background-color: #2a2a2a; color: #ffffff; border: 1px solid #404040; border-radius: 3px; padding: 5px; }
+        #gapThreshold, #ticksPerSecond, #bpm, #transpose, #speedMultiplier { width: 60px; }
+        #status { margin: 10px 0; color: #98ffcc; }
+        .time-signature { display: inline-block; margin-left: 10px; }
+        .checkbox-label { margin-left: 10px; display: inline-flex; align-items: center; }
+        input[type="checkbox"] { margin-right: 5px; }
+        .guitar-track { margin-bottom: 10px; }
+        .remove-btn { background-color: #ff4444; }
+        .remove-btn:hover { background-color: #cc0000; }
+        select { background-color: #2a2a2a; color: #ffffff; border: 1px solid #404040; border-radius: 3px; padding: 5px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>NOTE to MIDI</h1>
+    
+    <div>
+        <label>主音軌 (TXT):</label>
+        <input type="file" id="txtFile" accept=".txt">
+        <button onclick="loadText('main')">載入主音軌TXT</button>
+    </div>
+    <div id="guitarTracks">
+        <div class="guitar-track" data-index="0">
+            <label>吉他音軌 1 (TXT):</label>
+            <input type="file" id="guitarTxtFile0" accept=".txt">
+            <button onclick="loadText('guitar', 0)">載入吉他音軌 1 TXT</button>
+          <select id="instrumentSelect0" onchange="updateInstrumentSelection(0)">
+    <option value="0">Acoustic Grand Piano</option>
+    <option value="27">Electric Guitar (clean)</option>
+    <option value="25" selected>Acoustic Guitar (steel)</option>
+    <option value="29">Overdriven Guitar</option>
+    <option value="33">Bass Guitar</option>
+    <option value="40">Violin</option>
+    <option value="73">Flute</option>
+    <option value="56">Trumpet</option>
+    <option value="65">Alto Sax</option>
+    <option value="71">Clarinet</option>
+    <option value="25">Ukulele</option>
+    <option value="34">5-String Bass</option>
+    <option value="30">7-String Guitar</option>
+    <option value="34">5-String Bass (Drop D)</option>
+    <option value="30">7-String Guitar (Drop)</option>
+</select>
+            <button class="remove-btn" onclick="removeGuitarTrack(0)" disabled>移除</button>
+        </div>
+    </div>
+    <button onclick="addGuitarTrack()">新增吉他音軌</button>
+    <div class="time-signature">
+        拍子: 
+        <input type="number" id="timeSigNum" min="1" max="99" value="16"> /
+        <input type="number" id="timeSigDen" min="1" max="99" value="16">
+    </div>
+    <input type="number" id="gapThreshold" min="0" step="0.1" value="0.5"> 秒 (音符間隙閾值)
+    <input type="number" id="ticksPerSecond" min="1" step="1" value="1920"> Ticks/秒
+    <input type="number" id="bpm" min="1" step="1" value="120"> BPM
+    <input type="number" id="speedMultiplier" min="0.1" max="4.0" step="0.1" value="1.0"> 速度倍率
+    <button onclick="convertToMidi()">輸出MIDI</button>
+    <input type="number" id="transpose" min="-12" max="12" value="0"> 變調 (半音)
+    <button id="numberedBtn" onclick="convertToNumberedNotation()">轉換成簡譜</button>
+    <button id="0243Btn" onclick="convertTo0243()">轉換成 0243</button>
+    <label class="checkbox-label">
+        <input type="checkbox" id="autoTune"> 自動變調
+    </label>
+    
+    <div id="status"></div>
+
+    <script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
+                    var headerRowIndex = filteredData.findIndex((row, index) =>
+                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                    );
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error(e);
+                    return "";
+                }
+            }
+            return gk_fileData[filename] || "";
+        }
+    </script>
+    <script>
+        let mainNotesData = [];
+        let guitarNotesData = [[]];
+        let guitarInstrumentSelections = [25]; // Default to Acoustic Guitar (steel)
+        const statusDiv = document.getElementById('status');
+        let isMainFileLoaded = false;
+        let isGuitarFileLoaded = [false];
+        let detectedKey = 0;
+        let guitarTrackCount = 1;
+
+function addGuitarTrack() {
+    guitarTrackCount++;
+    const guitarTracksDiv = document.getElementById('guitarTracks');
+    const newTrackDiv = document.createElement('div');
+    newTrackDiv.className = 'guitar-track';
+    newTrackDiv.dataset.index = guitarTrackCount - 1;
+    newTrackDiv.innerHTML = `
+        <label>吉他音軌 ${guitarTrackCount} (TXT):</label>
+        <input type="file" id="guitarTxtFile${guitarTrackCount - 1}" accept=".txt">
+        <button onclick="loadText('guitar', ${guitarTrackCount - 1})">載入吉他音軌 ${guitarTrackCount} TXT</button>
+        <select id="instrumentSelect${guitarTrackCount - 1}" onchange="updateInstrumentSelection(${guitarTrackCount - 1})">
+            <option value="0">Acoustic Grand Piano</option>
+            <option value="27">Electric Guitar (clean)</option>
+            <option value="25" selected>Acoustic Guitar (steel)</option>
+            <option value="29">Overdriven Guitar</option>
+            <option value="33">Bass Guitar</option>
+            <option value="40">Violin</option>
+            <option value="73">Flute</option>
+            <option value="56">Trumpet</option>
+            <option value="65">Alto Sax</option>
+            <option value="71">Clarinet</option>
+            <option value="25">Ukulele</option>
+            <option value="34">5-String Bass</option>
+            <option value="30">7-String Guitar</option>
+            <option value="34">5-String Bass (Drop D)</option>
+            <option value="30">7-String Guitar (Drop)</option>
+        </select>
+        <button class="remove-btn" onclick="removeGuitarTrack(${guitarTrackCount - 1})">移除</button>
+    `;
+    guitarTracksDiv.appendChild(newTrackDiv);
+    guitarNotesData.push([]);
+    isGuitarFileLoaded.push(false);
+    guitarInstrumentSelections.push(25); // Default to Acoustic Guitar (steel)
+    updateButtonStates();
+}
+
+        function removeGuitarTrack(index) {
+            if (guitarTrackCount <= 1) return;
+            const trackDiv = document.querySelector(`.guitar-track[data-index="${index}"]`);
+            if (trackDiv) {
+                trackDiv.remove();
+                guitarNotesData[index] = [];
+                isGuitarFileLoaded[index] = false;
+                guitarInstrumentSelections.splice(index, 1); // Remove instrument selection
+                const tracks = document.querySelectorAll('.guitar-track');
+                tracks.forEach((track, i) => {
+                    track.dataset.index = i;
+                    const label = track.querySelector('label');
+                    const input = track.querySelector('input');
+                    const loadBtn = track.querySelector('button:not(.remove-btn)');
+                    const select = track.querySelector('select');
+                    const removeBtn = track.querySelector('.remove-btn');
+                    label.textContent = `吉他音軌 ${i + 1} (TXT):`;
+                    input.id = `guitarTxtFile${i}`;
+                    loadBtn.setAttribute('onclick', `loadText('guitar', ${i})`);
+                    select.id = `instrumentSelect${i}`;
+                    select.setAttribute('onchange', `updateInstrumentSelection(${i})`);
+                    removeBtn.setAttribute('onclick', `removeGuitarTrack(${i})`);
+                });
+                guitarNotesData.splice(index, 1);
+                isGuitarFileLoaded.splice(index, 1);
+                guitarTrackCount--;
+                updateButtonStates();
+            }
+        }
+
+        function updateInstrumentSelection(index) {
+            const select = document.getElementById(`instrumentSelect${index}`);
+            guitarInstrumentSelections[index] = parseInt(select.value);
+        }
+
+        function updateButtonStates() {
+            const numberedBtn = document.getElementById('numberedBtn');
+            const o243Btn = document.getElementById('0243Btn');
+            const hasGuitarTrack = isGuitarFileLoaded.some(loaded => loaded);
+            if (hasGuitarTrack) {
+                numberedBtn.disabled = true;
+                o243Btn.disabled = true;
+            } else {
+                numberedBtn.disabled = false;
+                o243Btn.disabled = false;
+            }
+            const firstRemoveBtn = document.querySelector('.guitar-track[data-index="0"] .remove-btn');
+            if (firstRemoveBtn) firstRemoveBtn.disabled = true;
+        }
+
+        function normalizeNote(note) {
+            return note.replace(/S/i, '#').toUpperCase().trim();
+        }
+
+        function analyzeKeySignature(notesData) {
+            const sharpCount = {};
+            notesData.forEach(entry => {
+                entry.notes.forEach(note => {
+                    if (note.includes('#')) {
+                        const baseNote = note[0];
+                        sharpCount[baseNote] = (sharpCount[baseNote] || 0) + 1;
+                    }
+                });
+            });
+            if (Object.keys(sharpCount).length === 0) return 0;
+            let maxCount = 0;
+            let dominantSharp = null;
+            for (const [note, count] of Object.entries(sharpCount)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    dominantSharp = note;
+                }
+            }
+            const sharpToKey = { 'F': 1, 'C': 2, 'G': 3, 'D': 4, 'A': 5, 'E': 6, 'B': 7 };
+            return sharpToKey[dominantSharp] || 0;
+        }
+
+        const noteToMidi = {
+            'A0': 21, 'A#0': 22, 'B0': 23, 'C1': 24, 'C#1': 25, 'D1': 26, 'D#1': 27, 'E1': 28, 'F1': 29, 'F#1': 30, 'G1': 31, 'G#1': 32, 'A1': 33, 'A#1': 34, 'B1': 35,
+            'C2': 36, 'C#2': 37, 'D2': 38, 'D#“T2': 39, 'E2': 40, 'F2': 41, 'F#2': 42, 'G2': 43, 'G#2': 44, 'A2': 45, 'A#2': 46, 'B2': 47,
+            'C3': 48, 'C#3': 49, 'D3': 50, 'D#3': 51, 'E3': 52, 'F3': 53, 'F#3': 54, 'G3': 55, 'G#3': 56, 'A3': 57, 'A#3': 58, 'B3': 59,
+            'C4': 60, 'C#4': 61, 'D4': 62, 'D#4': 63, 'E4': 64, 'F4': 65, 'F#4': 66, 'G4': 67, 'G#4': 68, 'A4': 69, 'A#4': 70, 'B4': 71,
+            'C5': 72, 'C#5': 73, 'D5': 74, 'D#5': 75, 'E5': 76, 'F5': 77, 'F#5': 78, 'G5': 79, 'G#5': 80, 'A5': 81, 'A#5': 82, 'B5': 83,
+            'C6': 84, 'C#6': 85, 'D6': 86, 'D#6': 87, 'E6': 88, 'F6': 89, 'F#6': 90, 'G6': 91, 'G#6': 92, 'A6': 93, 'A#6': 94, 'B6': 95,
+            'C7': 96, 'C#7': 97, 'D7': 98, 'D#7': 99, 'E7': 100, 'F7': 101, 'F#7': 102, 'G7': 103, 'G#7': 104, 'A7': 105, 'A#7': 106, 'B7': 107,
+            'C8': 108
+        };
+
+        function loadText(trackType, guitarIndex = 0) {
+            const fileInput = trackType === 'main' ? document.getElementById('txtFile') : document.getElementById(`guitarTxtFile${guitarIndex}`);
+            const file = fileInput.files[0];
+            const isMain = trackType === 'main';
+            
+            if (!file) {
+                statusDiv.textContent = `請先選擇一個${isMain ? '主音軌' : `吉他音軌 ${guitarIndex + 1}`}TXT檔案！`;
+                return;
+            }
+
+            statusDiv.textContent = `正在載入${isMain ? '主音軌' : `吉他音軌 ${guitarIndex + 1}`}檔案...`;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    const lines = text.trim().split('\n').filter(line => line.trim() !== '');
+                    const notesData = [];
+                    let errorLines = 0;
+                    
+                    lines.forEach((line, index) => {
+                        const parts = line.trim().split(/\s+/);
+                        if (parts.length < 2) {
+                            console.warn(`第 ${index + 1} 行格式錯誤，已跳過: ${line}`);
+                            errorLines++;
+                            return;
+                        }
+                        const time = parseFloat(parts[0]);
+                        if (isNaN(time)) {
+                            console.warn(`第 ${index + 1} 行時間無效，已跳過: ${parts[0]}`);
+                            errorLines++;
+                            return;
+                        }
+                        const notes = parts.slice(1).join('').split(',').map(normalizeNote).filter(note => note !== '');
+                        if (notes.length === 0) {
+                            console.warn(`第 ${index + 1} 行無有效音符，已跳過: ${line}`);
+                            errorLines++;
+                            return;
+                        }
+                        notesData.push({ time, notes });
+                    });
+
+                    if (notesData.length === 0) {
+                        throw new Error('檔案中沒有有效的音符數據');
+                    }
+
+                    if (isMain) {
+                        mainNotesData = notesData;
+                        isMainFileLoaded = true;
+                        detectedKey = analyzeKeySignature(mainNotesData);
+                        const keyNames = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#'];
+                        statusDiv.textContent = `主音軌TXT已載入！共 ${notesData.length} 個時間點，${notesData.reduce((sum, entry) => sum + entry.notes.length, 0)} 個音符` + 
+                            (errorLines > 0 ? `（${errorLines} 行格式錯誤已跳過）` : '') + 
+                            `，推測調性：${keyNames[detectedKey] || 'C'} 調`;
+                    } else {
+                        guitarNotesData[guitarIndex] = notesData;
+                        isGuitarFileLoaded[guitarIndex] = true;
+                        statusDiv.textContent = `吉他音軌 ${guitarIndex + 1} TXT已載入！共 ${notesData.length} 個時間點，${notesData.reduce((sum, entry) => sum + entry.notes.length, 0)} 個音符` + 
+                            (errorLines > 0 ? `（${errorLines} 行格式錯誤已跳過）` : '');
+                    }
+                    updateButtonStates();
+                } catch (error) {
+                    if (isMain) isMainFileLoaded = false;
+                    else isGuitarFileLoaded[guitarIndex] = false;
+                    statusDiv.textContent = `載入失敗：${error.message}`;
+                    console.error(error);
+                }
+            };
+            reader.onerror = function() {
+                if (isMain) isMainFileLoaded = false;
+                else isGuitarFileLoaded[guitarIndex] = false;
+                statusDiv.textContent = '檔案讀取失敗，請檢查檔案是否有效！';
+            };
+            reader.readAsText(file);
+        }
+
+        function toVarLength(value) {
+            if (value < 0) value = 0;
+            let bytes = [];
+            do {
+                let byte = value & 0x7F;
+                value >>= 7;
+                if (bytes.length > 0) byte |= 0x80;
+                bytes.unshift(byte);
+            } while (value > 0);
+            return bytes.length ? bytes : [0];
+        }
+
+        function intToBytes(value, length) {
+            const bytes = [];
+            for (let i = length - 1; i >= 0; i--) {
+                bytes[i] = value & 0xFF;
+                value >>= 8;
+            }
+            return bytes;
+        }
+
+function createMidiFile(mainNotes, guitarNotesArray = [[]]) {
+    const ticksPerSecond = parseInt(document.getElementById('ticksPerSecond').value) || 3840;
+    const bpm = parseInt(document.getElementById('bpm').value) || 120;
+    const speedMultiplier = parseFloat(document.getElementById('speedMultiplier').value) || 1.0;
+    const adjustedBpm = bpm * speedMultiplier;
+    const ticksPerQuarter = ticksPerSecond * 60 / adjustedBpm;
+    const validGuitarTracks = guitarNotesArray.filter(track => track.length > 0);
+    const numTracks = validGuitarTracks.length + 1;
+    const header = [
+        0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,
+        0x00, 0x01, 0x00, numTracks + 1, (ticksPerQuarter >> 8) & 0xFF, ticksPerQuarter & 0xFF
+    ];
+
+    // 節奏軌
+    const tempoEvents = [];
+    const tempoMicroseconds = Math.round(60000000 / adjustedBpm);
+    tempoEvents.push({
+        time: 0,
+        data: [0xFF, 0x51, 0x03, (tempoMicroseconds >> 16) & 0xFF, (tempoMicroseconds >> 8) & 0xFF, tempoMicroseconds & 0xFF],
+        originalTime: 0
+    });
+    const timeSigNum = parseInt(document.getElementById('timeSigNum').value) || 4;
+    const timeSigDen = parseInt(document.getElementById('timeSigDen').value) || 4;
+    const timeSigDenLog = Math.log2(timeSigDen);
+    tempoEvents.push({
+        time: 0,
+        data: [0xFF, 0x58, 0x04, timeSigNum, timeSigDenLog, 0x18, 0x08],
+        originalTime: 0
+    });
+    const lastTempoTime = tempoEvents.length ? Math.max(...tempoEvents.map(e => e.time)) : 0;
+    tempoEvents.push({
+        time: lastTempoTime + 1,
+        data: [0xFF, 0x2F, 0x00],
+        originalTime: lastTempoTime + 1
+    });
+    let runningTime = 0;
+    const tempoTrackData = [];
+    tempoEvents.forEach(event => {
+        const deltaTime = event.time - runningTime;
+        runningTime = event.time;
+        tempoTrackData.push(...toVarLength(deltaTime), ...event.data);
+    });
+    const tempoTrackHeader = [0x4D, 0x54, 0x72, 0x6B, ...intToBytes(tempoTrackData.length, 4)];
+
+    // 主音軌
+    const mainEvents = [];
+    mainEvents.push({ time: 0, data: [0xC0, 0x00], originalTime: 0, index: 0 });
+    const autoTune = document.getElementById('autoTune').checked;
+    const keySignature = autoTune ? analyzeKeySignature(mainNotes) : 0;
+    const transpose = parseInt(document.getElementById('transpose').value) || 0;
+    mainEvents.push({ time: 0, data: [0xFF, 0x59, 0x02, keySignature + transpose, 0x00], originalTime: 0, index: 1 });
+    const gapThreshold = parseFloat(document.getElementById('gapThreshold').value) || 0.5;
+    const forceSeparation = document.getElementById('forceNoteSeparation')?.checked ?? true;
+
+    // 收集並分配獨特 ticks
+    const timeToTicks = new Map();
+    const allTimes = [
+        ...mainNotes.map((entry, idx) => ({ time: entry.time / speedMultiplier, index: idx, type: 'main' })),
+        ...validGuitarTracks.flatMap((track, trackIdx) =>
+            track.map((entry, noteIdx) => ({ time: entry.time / speedMultiplier, index: noteIdx, type: 'guitar', trackIdx }))
+        )
+    ].sort((a, b) => a.time - b.time || a.index - b.index || a.type.localeCompare(b.type));
+
+    // 為每個獨特時間點分配精確的 tick
+    let lastTicks = -1;
+    allTimes.forEach(({ time }, idx) => {
+        if (!timeToTicks.has(time)) {
+            const scaledTicks = Math.round(time * ticksPerSecond);
+            const assignedTicks = Math.max(scaledTicks, lastTicks + 1);
+            timeToTicks.set(time, assignedTicks);
+            lastTicks = assignedTicks;
+        }
+    });
+
+    // 主音軌處理
+    mainNotes.forEach((entry, index) => {
+        const startTime = entry.time / speedMultiplier;
+        const nextTime = (index < mainNotes.length - 1) ? mainNotes[index + 1].time / speedMultiplier : startTime + gapThreshold;
+        const gap = nextTime - startTime;
+        const duration = forceSeparation ? Math.min(gap, gapThreshold) * 0.999 : Math.min(gap, gapThreshold);
+        const startTicks = timeToTicks.get(startTime);
+        const durationTicks = Math.max(Math.round(duration * ticksPerSecond), 2);
+
+        entry.notes.forEach((note, noteIdx) => {
+            const midiNote = noteToMidi[note];
+            if (midiNote === undefined) return;
+            const transposedMidiNote = midiNote + transpose;
+            if (transposedMidiNote < 0 || transposedMidiNote > 127) return;
+            mainEvents.push({
+                time: startTicks,
+                data: [0x90, transposedMidiNote, 0x64],
+                originalTime: startTime,
+                index: index * 1000 + noteIdx
+            });
+            mainEvents.push({
+                time: startTicks + durationTicks,
+                data: [0x80, transposedMidiNote, 0x00],
+                originalTime: startTime + duration,
+                index: index * 1000 + noteIdx + 0.5
+            });
+        });
+    });
+
+    // 排序主音軌事件
+    mainEvents.sort((a, b) => {
+        if (a.time !== b.time) return a.time - b.time;
+        if (a.originalTime !== b.originalTime) return a.originalTime - b.originalTime;
+        return a.index - b.index;
+    });
+
+    const lastMainTime = mainEvents.length ? Math.max(...mainEvents.map(e => e.time)) : 0;
+    mainEvents.push({
+        time: lastMainTime + 1,
+        data: [0xFF, 0x2F, 0x00],
+        originalTime: lastMainTime + 1,
+        index: Infinity
+    });
+    runningTime = 0;
+    const mainTrackData = [];
+    mainEvents.forEach(event => {
+        const deltaTime = event.time - runningTime;
+        runningTime = event.time;
+        mainTrackData.push(...toVarLength(deltaTime), ...event.data);
+    });
+    const mainTrackHeader = [0x4D, 0x54, 0x72, 0x6B, ...intToBytes(mainTrackData.length, 4)];
+
+    let midiData = new Uint8Array([...header, ...tempoTrackHeader, ...tempoTrackData, ...mainTrackHeader, ...mainTrackData]);
+
+    // 吉他音軌處理
+    validGuitarTracks.forEach((guitarNotes, index) => {
+        const guitarEvents = [];
+        const instrument = guitarInstrumentSelections[index] || 25;
+        guitarEvents.push({ time: 0, data: [0xC0 + index + 1, instrument], originalTime: 0, index: 0 });
+        guitarEvents.push({ time: 0, data: [0xFF, 0x59, 0x02, keySignature + transpose, 0x00], originalTime: 0, index: 1 });
+
+        guitarNotes.forEach((entry, noteIndex) => {
+    const startTime = entry.time / speedMultiplier;
+    const nextTime = (noteIndex < guitarNotes.length - 1) ? guitarNotes[noteIndex + 1].time / speedMultiplier : startTime + gapThreshold;
+    const gap = nextTime - startTime;
+    const duration = forceSeparation ? Math.min(gap, gapThreshold) * 0.999 : Math.min(gap, gapThreshold);
+    const startTicks = timeToTicks.get(startTime);
+    const nextStartTicks = timeToTicks.get(nextTime) || startTicks + Math.round(gapThreshold * ticksPerSecond);
+    let durationTicks = Math.max(Math.round(duration * ticksPerSecond), 2);
+    
+    // 確保 Note Off 事件早於下一個 Note On 事件
+    if (startTicks + durationTicks >= nextStartTicks) {
+        durationTicks = Math.max(nextStartTicks - startTicks - 1, 2); // 至少 2 ticks，且小於 nextStartTicks
+    }
+
+    entry.notes.forEach((note, noteIdx) => {
+        let midiNote = noteToMidi[note];
+        if (midiNote === undefined) return;
+        let pitchOffset = 0;
+        if (
+            instrument === 34 &&
+            guitarInstrumentSelections[index] === 34 &&
+            document.getElementById(`instrumentSelect${index}`).value === "34" &&
+            document.getElementById(`instrumentSelect${index}`).options[document.getElementById(`instrumentSelect${index}`).selectedIndex].text.includes("Drop D")
+        ) {
+            if (midiNote === 23) pitchOffset = -2;
+        }
+        if (
+            instrument === 30 &&
+            guitarInstrumentSelections[index] === 30 &&
+            document.getElementById(`instrumentSelect${index}`).value === "30" &&
+            document.getElementById(`instrumentSelect${index}`).options[document.getElementById(`instrumentSelect${index}`).selectedIndex].text.includes("Drop")
+        ) {
+            if (midiNote === 35) pitchOffset = -2;
+        }
+        let transposedMidiNote = midiNote + transpose + pitchOffset;
+        if (transposedMidiNote < 0 || transposedMidiNote > 127) return;
+        guitarEvents.push({
+            time: startTicks,
+            data: [0x90 + index + 1, transposedMidiNote, 0x64],
+            originalTime: startTime,
+            index: noteIndex * 1000 + noteIdx
+        });
+        guitarEvents.push({
+            time: startTicks + durationTicks,
+            data: [0x80 + index + 1, transposedMidiNote, 0x00],
+            originalTime: startTime + duration,
+            index: noteIndex * 1000 + noteIdx + 0.5
+        });
+    });
+});
+
+        // 排序吉他音軌事件
+        guitarEvents.sort((a, b) => {
+            if (a.time !== b.time) return a.time - b.time;
+            if (a.originalTime !== b.originalTime) return a.originalTime - b.originalTime;
+            return a.index - b.index;
+        });
+
+        const lastGuitarTime = guitarEvents.length ? Math.max(...guitarEvents.map(e => e.time)) : 0;
+        guitarEvents.push({
+            time: lastGuitarTime + 1,
+            data: [0xFF, 0x2F, 0x00],
+            originalTime: lastGuitarTime + 1,
+            index: Infinity
+        });
+        runningTime = 0;
+        const guitarTrackData = [];
+        guitarEvents.forEach(event => {
+            const deltaTime = event.time - runningTime;
+            runningTime = event.time;
+            guitarTrackData.push(...toVarLength(deltaTime), ...event.data);
+        });
+        const guitarTrackHeader = [0x4D, 0x54, 0x72, 0x6B, ...intToBytes(guitarTrackData.length, 4)];
+        midiData = new Uint8Array([...midiData, ...guitarTrackHeader, ...guitarTrackData]);
+    });
+
+    return midiData;
+}
+
+        function convertToMidi() {
+            if (!isMainFileLoaded || mainNotesData.length === 0) {
+                statusDiv.textContent = '請先成功載入主音軌TXT檔案！';
+                return;
+            }
+
+            try {
+                statusDiv.textContent = '正在生成MIDI...';
+                const midiData = createMidiFile(mainNotesData, guitarNotesData);
+                const blob = new Blob([midiData], { type: 'audio/midi' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'output_with_guitars.mid';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                const guitarTrackCount = guitarNotesData.filter(track => track.length > 0).length;
+                statusDiv.textContent = `MIDI檔案已生成並下載！包含主音軌${guitarTrackCount > 0 ? `和 ${guitarTrackCount} 個吉他音軌` : ''}`;
+            } catch (error) {
+                statusDiv.textContent = `MIDI生成失敗：${error.message}`;
+                console.error(error);
+            }
+        }
+
+        function convertToNumberedNotation() {
+            // Placeholder for numbered notation conversion
+            statusDiv.textContent = '簡譜轉換功能尚未實作';
+        }
+
+        function convertTo0243() {
+            // Placeholder for 0243 conversion
+            statusDiv.textContent = '0243 轉換功能尚未實作';
+        }
+    </script>
+</body>
+</html>
