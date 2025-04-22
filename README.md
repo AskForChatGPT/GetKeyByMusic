@@ -125,3 +125,41 @@ RelMakV10S
 把文字先複雜到NOTEPAD再複雜到EXCEL來進行存儲
 
 
+
+
+i just make html from imprt mp3 to extract as midi, 
+but this is not generate automatic you need hand by hand like midi but you don't need any midi device,
+
+LoaMusDoChaV90MS-Frok_multiNoteV100MS.html
+is the first step 
+import mp3(any you want song), 
+then press play button and empty area of mouse click,
+when mp3 was play just press M key to record markers what instrument melody you want
+after pressing all marker
+use mouse press the head part 
+use I and O as a starting marker point and ending marker
+and press P as zoom in those group
+
+Second Step 
+modify more accurate timming for those marker
+pressing L to switch a playback speed as 0.6
+remaking the marker when it play 
+use 0 as delete won't timing marker 
+use Z X to select previous or next marker
+
+Third Step
+input the note in the selected marker
+press ASDFGHJ as C to B note
+WE TYU as C# to A#
+QBVC as C2toC3 C5-C6 need hold to press with note
+R as C4to C5 don't need to hold as default pressing any note
+Fourth step
+using < > to switch to next part of marker and repeating  Step2-4
+firth step
+pressing 8 to add more note in one marker
+but you need use mouse to press the QBVC ASDFG....for adding 
+to replace or clear just use press keybord key to replace  
+final 
+export as txt and using 
+NOTE.to.midi.V025-stable.html
+
